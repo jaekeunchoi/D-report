@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AplusRF 일일업무보고</title>
+<style>
+  :root {
+    --line-color: #5a8f29;
+    --header-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --primary: #15803d;
+    --text-main: #1e293b;
+  }
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color: var(--text-main);
+    background: #ffffff;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 상단 툴바 */
+  .toolbar {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #166534;
+    margin-right: 8px;
+  }
+
+  .brand-icon {
+    font-size: 20px;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #475569;
+  }
+
+  select, .btn {
+    height: 32px;
+    border-radius: 7px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #1e293b;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  select:hover, .btn:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+
+  .btn-active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+  }
+
+  .btn-admin {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+  }
+
+  .btn-admin:hover {
+    background: #dcfce7;
+  }
+
+  .sync-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #86efac;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  }
+
+  .sync-dot.cloud {
+    background: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+  }
+
+  .zoom-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #475569;
+    margin-left: 4px;
+  }
+
+  input[type="range"] {
+    width: 110px;
+    accent-color: #2563eb;
+    cursor: pointer;
+  }
+
+  .options-panel {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding-left: 8px;
+    border-left: 2px solid #e2e8f0;
+  }
+
+  .options-panel.visible {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .permission-badge {
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+
+  /* 캔버스 영역: 점선 없는 순수 흰색 바탕 */
+  .canvas-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    cursor: default;
+  }
+
+  .canvas-viewport.panning {
+    cursor: grabbing !important;
+  }
+
+  .canvas-stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    padding: 40px 80px 160px 80px;
+    min-width: max-content;
+  }
+
+  /* 트리 공통 노드 */
+  .node-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: box-shadow 0.12s ease;
+    cursor: pointer;
+  }
+
+  .node-box.selected {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .node-box.readonly-dim {
+    opacity: 0.92;
+  }
+
+  .toggle-btn {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--line-color);
+    background: #ffffff;
+    color: var(--line-color);
+    font-size: 12px;
+    line-height: 14px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .toggle-btn:hover {
+    background: #f0fdf4;
+  }
+
+  /* 가로형 트리 (제목 -> 월 -> 주 -> 날짜) */
+  .h-tree-node {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .h-stem {
+    width: 1.5px;
+    height: 16px;
+    background: var(--line-color);
+  }
+
+  .h-children {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .h-child {
+    position: relative;
+    padding: 18px 10px 0 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .h-child::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 18px;
+    border-left: 1.5px solid var(--line-color);
+  }
+
+  .h-child::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border-top: 1.5px solid var(--line-color);
+  }
+
+  .h-child:first-child::after {
+    left: 50%;
+  }
+
+  .h-child:last-child::after {
+    right: 50%;
+  }
+
+  .h-child:only-child::after {
+    display: none;
+  }
+
+  /* 각 레벨 박스 스타일 */
+  .box-root {
+    border: 3px solid #4d7c0f;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 12px 32px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e293b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 4px;
+  }
+
+  .box-month {
+    border: 1.5px solid #4d7c0f;
+    border-radius: 4px;
+    background: #ffff00;
+    padding: 5px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .box-week {
+    border: 1.5px solid #5a8f29;
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .box-date {
+    border: 1.5px solid #3b82f6;
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  /* 날짜와 팀을 이어주는 연결선 브릿지 */
+  .date-v-body {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .date-elbow {
+    position: relative;
+    width: 100%;
+    height: 12px;
+  }
+
+  .date-elbow::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 10px;
+    right: 50%;
+    border-top: 1.5px solid var(--line-color);
+  }
+
+  .date-elbow::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 10px;
+    bottom: 0;
+    border-left: 1.5px solid var(--line-color);
+  }
+
+  /* 세로형 아웃라인 트리 (날짜 -> 팀 -> 진행/계획 -> 하위 글상자) */
+  .v-children {
+    position: relative;
+    padding-left: 24px;
+    margin-top: 0;
+    align-self: flex-start;
+    text-align: left;
+  }
+
+  .v-item .v-children {
+    margin-left: 6px;
+  }
+
+  .v-item {
+    position: relative;
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .v-item::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 0;
+    bottom: 0;
+    border-left: 1.5px solid var(--line-color);
+  }
+
+  .v-item:last-child::before {
+    height: 22px;
+    bottom: auto;
+  }
+
+  .v-item::after {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 22px;
+    width: 14px;
+    border-top: 1.5px solid var(--line-color);
+  }
+
+  .v-row {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .box-team {
+    border: 1px solid #64748b;
+    border-radius: 7px;
+    padding: 5px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 74px;
+    justify-content: center;
+  }
+
+  .box-category {
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    padding: 3px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  /* 하위 글상자: 기본 테두리 없음 */
+  .node-text-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .box-text-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .box-custom {
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    padding: 3px 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #0f172a;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-width: 680px;
+  }
+
+  .box-custom.empty-text {
+    color: #94a3b8;
+    font-style: italic;
+  }
+
+  /* 글자 수에 맞게 자동 크기 조절되는 인라인 에디터 */
+  .inline-editor {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 4px 8px;
+    border: 1.5px solid #2563eb;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #0f172a;
+    min-width: 140px;
+    max-width: 700px;
+    overflow: hidden;
+    resize: none;
+    outline: none;
+    user-select: text;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* 텍스트 너비 측정용 숨김 요소 */
+  .text-measure-helper {
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    visibility: hidden;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 4px 8px;
+    white-space: pre;
+    border: 1.5px solid transparent;
+  }
+
+  /* 첨부파일 영역 */
+  .attach-area {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+  }
+
+  .attach-icon-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .attach-icon-badge:hover {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+  }
+
+  /* 호버 시에만 파일명 표시 */
+  .attach-icon-badge .attach-tooltip {
+    display: none;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 500;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+
+  .attach-icon-badge:hover .attach-tooltip {
+    display: block;
+  }
+
+  .attach-add-btn {
+    opacity: 0;
+    border: 1px dashed #94a3b8;
+    background: #ffffff;
+    color: #475569;
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 1px 6px;
+    cursor: pointer;
+    height: 22px;
+    transition: opacity 0.12s;
+  }
+
+  .v-row:hover .attach-add-btn,
+  .node-box.selected ~ .attach-area .attach-add-btn,
+  .attach-area:hover .attach-add-btn {
+    opacity: 1;
+  }
+
+  /* 붙여넣기 이미지 (글상자 하단 표시) */
+  .pasted-images-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+    padding-left: 4px;
+  }
+
+  .pasted-img-card {
+    position: relative;
+    display: inline-block;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .pasted-img-card img {
+    display: block;
+    max-width: 260px;
+    max-height: 180px;
+    object-fit: contain;
+    cursor: zoom-in;
+  }
+
+  .pasted-img-del {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pasted-img-card:hover .pasted-img-del {
+    display: flex;
+  }
+
+  /* 우클릭 스타일 메뉴 (테두리 & 채우기) */
+  .context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+    padding: 12px;
+    width: 255px;
+    display: none;
+    font-size: 12px;
+  }
+
+  .context-menu.open {
+    display: block;
+  }
+
+  .cm-section {
+    margin-bottom: 10px;
+  }
+
+  .cm-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .cm-title {
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  .cm-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .cm-chip {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .cm-chip:hover {
+    background: #e2e8f0;
+  }
+
+  .cm-chip.active {
+    background: #dbeafe;
+    border-color: #2563eb;
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+
+  .swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+  }
+
+  .swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #94a3b8;
+    cursor: pointer;
+  }
+
+  .swatch.transparent-swatch {
+    background: repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+  }
+
+  /* 모달 (기본 및 크기 조절 가능 미리보기) */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+  }
+
+  .modal-card {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 540px;
+    max-width: 96vw;
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.28);
+  }
+
+  .modal-card.resizable-preview {
+    width: 82vw;
+    height: 82vh;
+    min-width: 360px;
+    min-height: 280px;
+    max-width: 98vw;
+    max-height: 96vh;
+    resize: both;
+  }
+
+  .modal-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-weight: 700;
+    background: #f8fafc;
+    flex-shrink: 0;
+  }
+
+  .modal-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .modal-actions .btn {
+    height: 27px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .modal-body {
+    padding: 16px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-body.preview-mode {
+    padding: 8px;
+    background: #f1f5f9;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-body input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    user-select: text;
+  }
+
+  .resize-hint {
+    font-size: 11px;
+    color: #64748b;
+    padding: 3px 10px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  /* 하단 상태 안내 바 */
+  .status-bar {
+    height: 28px;
+    background: #f1f5f9;
+    border-top: 1px solid #e2e8f0;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #475569;
+  }
+
+  /* 토스트 알림 */
+  .toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 3000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .toast.show {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 상단 툴바 -->
+  <header class="toolbar">
+    <div class="toolbar-row">
+      <div class="brand">
+        <span class="brand-icon">🌲</span>
+        <span>AplusRF 일일업무보고</span>
+      </div>
+
+      <div class="control-group">
+        <label for="yearSelect">년도</label>
+        <select id="yearSelect"></select>
+      </div>
+
+      <div class="control-group">
+        <label for="quarterSelect">쿼터</label>
+        <select id="quarterSelect">
+          <option value="1">1Q (1~3월)</option>
+          <option value="2">2Q (4~6월)</option>
+          <option value="3">3Q (7~9월)</option>
+          <option value="4">4Q (10~12월)</option>
+        </select>
+      </div>
+
+      <button class="btn" id="expandStepBtn" title="클릭할 때마다 한 단계씩 펼칩니다">📂 펼치기</button>
+      <button class="btn" id="collapseStepBtn" title="클릭할 때마다 한 단계씩 접습니다">📁 접기</button>
+      <button class="btn" id="optionsToggleBtn" title="JSON 및 동기화 옵션을 표시합니다">⚙️ 옵션</button>
+    </div>
+
+    <div class="toolbar-row">
+      <div class="control-group">
+        <label for="authorSelect">작성자</label>
+        <select id="authorSelect"></select>
+        <span class="permission-badge" id="permissionBadge">전체 팀 입력 가능</span>
+        <button class="btn btn-admin" id="addTeamBtn" title="관리자 전용: 새로운 팀을 추가합니다">➕ 팀 추가</button>
+      </div>
+
+      <button class="sync-pill" id="syncStatusBtn" title="실시간 협업 동기화 설정 및 상태">
+        <span class="sync-dot" id="syncDot"></span>
+        <span id="syncLabel">실시간 협업 동기화</span>
+      </button>
+
+      <div class="zoom-wrap">
+        <span>배율</span>
+        <input type="range" id="zoomSlider" min="25" max="200" value="100" />
+        <span id="zoomLabel">100%</span>
+      </div>
+
+      <!-- 옵션 버튼 클릭 시에만 보이는 영역 -->
+      <div class="options-panel" id="optionsPanel">
+        <button class="btn" id="exportJsonBtn">💾 JSON 내보내기</button>
+        <button class="btn" id="importJsonBtn">📥 JSON 불러오기</button>
+        <button class="btn" id="mergeJsonBtn">🔀 팀별 JSON 병합</button>
+        <button class="btn" id="cloudSyncBtn">☁️ 실시간 서버 동기화</button>
+        <input type="file" id="jsonFileInput" accept=".json" style="display:none" />
+      </div>
+    </div>
+  </header>
+
+  <!-- 캔버스 뷰포트 -->
+  <main class="canvas-viewport" id="canvasViewport">
+    <div class="canvas-stage" id="canvasStage"></div>
+  </main>
+
+  <!-- 하단 단축키 안내 -->
+  <footer class="status-bar">
+    <div>
+      <strong>조작 안내:</strong>
+      글상자 선택 후 <b>Space</b> 하위 추가 | <b>더블클릭</b> 입력(<b>Enter</b> 입력완료·빠져나오기, 50자 자동 줄바꿈) | <b>Ctrl+V</b> 이미지 붙여넣기 | <b>우클릭</b> 테두리·채우기 | <b>우클릭 드래그</b> 화면 이동 | <b>배경 좌측 더블클릭</b> 전체 맞춤
+    </div>
+    <div id="saveStatusText">자동 저장됨</div>
+  </footer>
+
+  <!-- 숨김 파일 첨부 입력기 & 텍스트 측정 헬퍼 -->
+  <input type="file" id="attachFileInput"
+         accept=".xlsx,.xls,.csv,.pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.gif,.txt,.zip"
+         style="display:none" />
+  <div class="text-measure-helper" id="textMeasureHelper"></div>
+
+  <!-- 우클릭 스타일 메뉴 (테두리 & 채우기 / 관리자 팀 추가) -->
+  <div class="context-menu" id="contextMenu">
+    <div id="cmStyleSections">
+      <div class="cm-section">
+        <div class="cm-title">테두리 스타일</div>
+        <div class="cm-btn-row" id="cmBorderStyles">
+          <button class="cm-chip" data-border="none">없음</button>
+          <button class="cm-chip" data-border="solid">실선</button>
+          <button class="cm-chip" data-border="bold">굵은선</button>
+          <button class="cm-chip" data-border="dashed">점선</button>
+        </div>
+      </div>
+      <div class="cm-section">
+        <div class="cm-title">테두리 색상</div>
+        <div class="swatch-row" id="cmBorderColors"></div>
+      </div>
+      <div class="cm-section">
+        <div class="cm-title">채우기 색상</div>
+        <div class="swatch-row" id="cmFillColors"></div>
+      </div>
+    </div>
+    <div class="cm-section" style="border-top:1px solid #e2e8f0; padding-top:8px;">
+      <div class="cm-btn-row">
+        <button class="cm-chip" id="cmAddChildBtn">+ 하위 추가 (Space)</button>
+        <button class="cm-chip" id="cmAttachBtn">📎 파일 첨부</button>
+        <button class="cm-chip" id="cmDeleteBtn" style="color:#dc2626;">🗑 삭제</button>
+        <button class="cm-chip" id="cmAdminAddTeamBtn" style="color:#15803d;display:none;">➕ 새 팀 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공용 모달 -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-card" id="modalCard">
+      <div class="modal-header">
+        <span class="modal-title-text" id="modalTitle">미리보기</span>
+        <div class="modal-actions" id="modalActions"></div>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="resize-hint" id="modalResizeHint" style="display:none;">
+        <span>상단 버튼 또는 오른쪽 아래 모서리를 드래그해 창 크기를 자유롭게 조절하세요.</span>
+        <span id="previewZoomInfo"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // =========================================================
+  // 1. 기본 상수 및 팀 설정
+  // =========================================================
+  const DEFAULT_TEAMS = [
+    { name: "생산",     color: "#f59e0b" },
+    { name: "가공",     color: "#38bdf8" },
+    { name: "생산기술", color: "#a7f3d0" },
+    { name: "기술영업", color: "#c4b5fd" },
+    { name: "품질",     color: "#fda4af" },
+    { name: "연구소",   color: "#93c5fd" },
+    { name: "IQC",      color: "#fde047" },
+    { name: "구매자재", color: "#fdba74" },
+    { name: "이사",     color: "#cbd5e1" },
+    { name: "대표이사", color: "#fca5a5" }
+  ];
+
+  const EXTRA_TEAM_COLORS = [
+    "#86efac", "#67e8f9", "#f9a8d4", "#fcd34d", "#a5b4fc", "#d8b4fe", "#fda4af", "#bef264"
+  ];
+
+  const OFFICE_MIME_MAP = {
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    xls:  "application/vnd.ms-excel",
+    csv:  "text/csv",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    pptm: "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+    ppt:  "application/vnd.ms-powerpoint",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    doc:  "application/msword"
+  };
+
+  const STORAGE_PREFIX = "aplusRF_dailyReport_v2_";
+  const SYNC_CONFIG_KEY = "aplusRF_cloudSync_config_v1";
+  const AUTHOR_KEY = "aplusRF_currentAuthor_v1";
+  const HIDE_OFFICE_TIP_KEY = "aplusRF_hideOfficeTip_v1";
+
+  const SWATCH_COLORS = [
+    "transparent", "#ffffff", "#fef08a", "#fed7aa", "#fecaca",
+    "#bbf7d0", "#bae6fd", "#ddd6fe", "#fbcfe8", "#e2e8f0", "#1e293b"
+  ];
+  const BORDER_COLORS = [
+    "#334155", "#16a34a", "#2563eb", "#dc2626", "#d97706", "#7c3aed", "#64748b"
+  ];
+
+  // =========================================================
+  // 2. 앱 상태
+  // =========================================================
+  let state = {
+    year: 2027,
+    quarter: 1,
+    author: "관리자",
+    teams: structuredCloneSafe(DEFAULT_TEAMS),
+    tree: null
+  };
+
+  let ui = {
+    selectedId: null,
+    editingId: null,
+    zoom: 1,
+    panX: 60,
+    panY: 30,
+    optionsVisible: false,
+    pendingAttachNodeId: null,
+    jsonImportMode: "replace",
+    previewImgScale: 1
+  };
+
+  let cloudConfig = {
+    firebaseUrl: "",
+    roomId: "aplusRF_2027"
+  };
+
+  let eventSource = null;
+  let broadcastChannel = null;
+  let isApplyingRemote = false;
+
+  // DOM 참조
+  const yearSelect = document.getElementById("yearSelect");
+  const quarterSelect = document.getElementById("quarterSelect");
+  const authorSelect = document.getElementById("authorSelect");
+  const permissionBadge = document.getElementById("permissionBadge");
+  const addTeamBtn = document.getElementById("addTeamBtn");
+  const expandStepBtn = document.getElementById("expandStepBtn");
+  const collapseStepBtn = document.getElementById("collapseStepBtn");
+  const optionsToggleBtn = document.getElementById("optionsToggleBtn");
+  const optionsPanel = document.getElementById("optionsPanel");
+  const exportJsonBtn = document.getElementById("exportJsonBtn");
+  const importJsonBtn = document.getElementById("importJsonBtn");
+  const mergeJsonBtn = document.getElementById("mergeJsonBtn");
+  const cloudSyncBtn = document.getElementById("cloudSyncBtn");
+  const jsonFileInput = document.getElementById("jsonFileInput");
+  const attachFileInput = document.getElementById("attachFileInput");
+  const textMeasureHelper = document.getElementById("textMeasureHelper");
+  const zoomSlider = document.getElementById("zoomSlider");
+  const zoomLabel = document.getElementById("zoomLabel");
+  const canvasViewport = document.getElementById("canvasViewport");
+  const canvasStage = document.getElementById("canvasStage");
+  const contextMenu = document.getElementById("contextMenu");
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const modalCard = document.getElementById("modalCard");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalActions = document.getElementById("modalActions");
+  const modalBody = document.getElementById("modalBody");
+  const modalResizeHint = document.getElementById("modalResizeHint");
+  const previewZoomInfo = document.getElementById("previewZoomInfo");
+  const syncStatusBtn = document.getElementById("syncStatusBtn");
+  const syncDot = document.getElementById("syncDot");
+  const syncLabel = document.getElementById("syncLabel");
+  const saveStatusText = document.getElementById("saveStatusText");
+  const toastEl = document.getElementById("toast");
+
+  // =========================================================
+  // 3. 유틸리티 함수
+  // =========================================================
+  function structuredCloneSafe(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function uid() {
+    return "n_" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3200);
+  }
+
+  function wrapAt50Chars(text) {
+    if (!text) return "";
+    return text
+      .split("\n")
+      .map(line => {
+        if (line.length <= 50) return line;
+        const chunks = [];
+        for (let i = 0; i < line.length; i += 50) {
+          chunks.push(line.slice(i, i + 50));
+        }
+        return chunks.join("\n");
+      })
+      .join("\n");
+  }
+
+  function resizeEditorToContent(ta) {
+    const wrapped = wrapAt50Chars(ta.value || "");
+    const lines = wrapped.split("\n");
+    let maxLineWidth = 120;
+
+    lines.forEach(line => {
+      textMeasureHelper.textContent = line || " ";
+      const w = textMeasureHelper.offsetWidth + 20;
+      if (w > maxLineWidth) maxLineWidth = w;
+    });
+
+    ta.style.width = `${Math.min(700, Math.max(140, maxLineWidth))}px`;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.max(28, ta.scrollHeight + 4)}px`;
+  }
+
+  function getQuarterMonths(quarter) {
+    const start = (quarter - 1) * 3 + 1;
+    return [start, start + 1, start + 2];
+  }
+
+  function getWeeksOfMonth(year, month) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const weeks = [];
+    let currentWeek = [];
+    let weekNum = 1;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month - 1, day);
+      const dow = d.getDay();
+      if (day > 1 && dow === 1) {
+        weeks.push({ weekNum, days: currentWeek });
+        weekNum++;
+        currentWeek = [];
+      }
+      currentWeek.push(day);
+    }
+    if (currentWeek.length > 0) {
+      weeks.push({ weekNum, days: currentWeek });
+    }
+    return weeks;
+  }
+
+  function createTeamNode(year, month, day, team, expanded = false, withSample = false) {
+    return {
+      id: `t_${year}_${month}_${day}_${team.name}`,
+      type: "team",
+      teamName: team.name,
+      text: team.name,
+      fillColor: team.color,
+      collapsed: !expanded,
+      children: [
+        {
+          id: `c_${year}_${month}_${day}_${team.name}_진행`,
+          type: "category",
+          teamName: team.name,
+          text: "진행",
+          collapsed: false,
+          attachments: [],
+          pastedImages: [],
+          children: withSample ? [
+            {
+              id: uid(),
+              type: "custom",
+              teamName: team.name,
+              text: "금일 주요 진행 업무 (더블클릭 입력 / Space로 하위 추가)",
+              collapsed: false,
+              borderStyle: "none",
+              borderColor: "#334155",
+              fillColor: "transparent",
+              attachments: [],
+              pastedImages: [],
+              children: []
+            }
+          ] : []
+        },
+        {
+          id: `c_${year}_${month}_${day}_${team.name}_계획`,
+          type: "category",
+          teamName: team.name,
+          text: "계획",
+          collapsed: false,
+          attachments: [],
+          pastedImages: [],
+          children: []
+        }
+      ]
+    };
+  }
+
+  function createQuarterTree(year, quarter, teamsList = state.teams) {
+    const months = getQuarterMonths(quarter);
+    const isDefault2027Q1 = (year === 2027 && quarter === 1);
+
+    const root = {
+      id: `root_${year}_${quarter}`,
+      type: "root",
+      text: `${year}(${quarter}Q)업무보고`,
+      collapsed: false,
+      children: []
+    };
+
+    months.forEach((month, mIdx) => {
+      const monthNode = {
+        id: `m_${year}_${quarter}_${month}`,
+        type: "month",
+        text: `${month}월`,
+        collapsed: mIdx !== 0,
+        children: []
+      };
+
+      const weeks = getWeeksOfMonth(year, month);
+      weeks.forEach((wk, wIdx) => {
+        const weekCollapsed = !(isDefault2027Q1 && mIdx === 0 && wIdx === 0);
+        const weekNode = {
+          id: `w_${year}_${month}_${wk.weekNum}`,
+          type: "week",
+          text: `${month}M${wk.weekNum}W`,
+          collapsed: weekCollapsed,
+          children: []
+        };
+
+        wk.days.forEach((day, dIdx) => {
+          const dateCollapsed = !(isDefault2027Q1 && mIdx === 0 && wIdx === 0 && dIdx === 0);
+          const dateNode = {
+            id: `d_${year}_${month}_${day}`,
+            type: "date",
+            year, month, day,
+            text: `${month}/${day}`,
+            collapsed: dateCollapsed,
+            children: []
+          };
+
+          teamsList.forEach((team, tIdx) => {
+            const teamExpanded = isDefault2027Q1 && mIdx === 0 && wIdx === 0 && dIdx === 0 && tIdx === 0;
+            dateNode.children.push(
+              createTeamNode(year, month, day, team, teamExpanded, teamExpanded)
+            );
+          });
+
+          weekNode.children.push(dateNode);
+        });
+
+        monthNode.children.push(weekNode);
+      });
+
+      root.children.push(monthNode);
+    });
+
+    return root;
+  }
+
+  function findNodeAndParent(node, id, parent = null) {
+    if (!node) return null;
+    if (node.id === id) return { node, parent };
+    if (node.children) {
+      for (const child of node.children) {
+        const res = findNodeAndParent(child, id, node);
+        if (res) return res;
+      }
+    }
+    return null;
+  }
+
+  function canEditNode(node) {
+    if (!node) return false;
+    if (state.author === "관리자") return true;
+    if (!node.teamName) return false;
+    return node.teamName === state.author;
+  }
+
+  // =========================================================
+  // 4. 저장 / 불러오기 / 실시간 동기화
+  // =========================================================
+  function getStorageKey(year = state.year, quarter = state.quarter) {
+    return `${STORAGE_PREFIX}${year}_${quarter}`;
+  }
+
+  function loadQuarterData(year, quarter) {
+    const key = getStorageKey(year, quarter);
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.tree && parsed.tree.id) {
+          return {
+            teams: Array.isArray(parsed.teams) && parsed.teams.length > 0
+              ? parsed.teams
+              : structuredCloneSafe(DEFAULT_TEAMS),
+            tree: parsed.tree
+          };
+        }
+        if (parsed && parsed.id) {
+          return {
+            teams: structuredCloneSafe(DEFAULT_TEAMS),
+            tree: parsed
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("로컬 스토리지 로드 오류:", e);
+    }
+    const defaultTeams = structuredCloneSafe(DEFAULT_TEAMS);
+    return {
+      teams: defaultTeams,
+      tree: createQuarterTree(year, quarter, defaultTeams)
+    };
+  }
+
+  function saveData(broadcast = true) {
+    const key = getStorageKey();
+    try {
+      localStorage.setItem(key, JSON.stringify({
+        teams: state.teams,
+        tree: state.tree
+      }));
+      const now = new Date();
+      saveStatusText.textContent = `자동 저장 (${now.toLocaleTimeString()})`;
+    } catch (e) {
+      showToast("저장 공간이 부족합니다. JSON 내보내기로 백업해 주세요.");
+    }
+
+    if (broadcast && !isApplyingRemote) {
+      if (broadcastChannel) {
+        broadcastChannel.postMessage({
+          type: "TREE_UPDATE",
+          year: state.year,
+          quarter: state.quarter,
+          teams: state.teams,
+          tree: state.tree
+        });
+      }
+      pushToCloud();
+    }
+  }
+
+  function initBroadcastChannel() {
+    if (!("BroadcastChannel" in window)) return;
+    broadcastChannel = new BroadcastChannel("aplusRF_collab_channel");
+    broadcastChannel.onmessage = (ev) => {
+      const msg = ev.data;
+      if (!msg || msg.type !== "TREE_UPDATE") return;
+      if (msg.year === state.year && msg.quarter === state.quarter && !ui.editingId) {
+        isApplyingRemote = true;
+        if (msg.teams) {
+          state.teams = msg.teams;
+          refreshAuthorOptions();
+        }
+        state.tree = msg.tree;
+        saveData(false);
+        render();
+        isApplyingRemote = false;
+      }
+    };
+  }
+
+  function loadCloudConfig() {
+    try {
+      const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+      if (raw) cloudConfig = { ...cloudConfig, ...JSON.parse(raw) };
+    } catch (_) {}
+    updateSyncStatusUI();
+  }
+
+  function updateSyncStatusUI() {
+    if (cloudConfig.firebaseUrl && cloudConfig.firebaseUrl.trim()) {
+      syncDot.classList.add("cloud");
+      syncLabel.textContent = "클라우드 실시간 동기화 중";
+    } else {
+      syncDot.classList.remove("cloud");
+      syncLabel.textContent = "실시간 협업 동기화";
+    }
+  }
+
+  function getCloudEndpoint() {
+    if (!cloudConfig.firebaseUrl) return null;
+    const base = cloudConfig.firebaseUrl.trim().replace(/\/+$/, "");
+    const room = encodeURIComponent(cloudConfig.roomId || "aplusRF_default");
+    return `${base}/aplusRF/${room}/${state.year}_${state.quarter}.json`;
+  }
+
+  let cloudPushTimer = null;
+  function pushToCloud() {
+    const endpoint = getCloudEndpoint();
+    if (!endpoint) return;
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(async () => {
+      try {
+        await fetch(endpoint, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            updatedAt: Date.now(),
+            updatedBy: state.author,
+            teams: state.teams,
+            tree: state.tree
+          })
+        });
+      } catch (e) {
+        console.warn("클라우드 동기화 전송 실패:", e);
+      }
+    }, 450);
+  }
+
+  function connectCloudStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    const endpoint = getCloudEndpoint();
+    if (!endpoint) return;
+
+    fetch(endpoint)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.tree) {
+          isApplyingRemote = true;
+          if (data.teams) {
+            state.teams = data.teams;
+            refreshAuthorOptions();
+          }
+          state.tree = data.tree;
+          saveData(false);
+          render();
+          isApplyingRemote = false;
+        }
+      })
+      .catch(() => {});
+
+    try {
+      eventSource = new EventSource(endpoint);
+      eventSource.addEventListener("put", (ev) => {
+        try {
+          const payload = JSON.parse(ev.data);
+          if (payload && payload.data && payload.data.tree && !ui.editingId) {
+            isApplyingRemote = true;
+            if (payload.data.teams) {
+              state.teams = payload.data.teams;
+              refreshAuthorOptions();
+            }
+            state.tree = payload.data.tree;
+            saveData(false);
+            render();
+            isApplyingRemote = false;
+          }
+        } catch (_) {}
+      });
+    } catch (e) {
+      console.warn("SSE 연결 실패:", e);
+    }
+  }
+
+  // =========================================================
+  // 5. 관리자 전용: 팀 추가 기능
+  // =========================================================
+  function openAddTeamModal(focusDateId = null) {
+    if (state.author !== "관리자") {
+      showToast("팀 추가 권한은 '관리자'에게만 있습니다.");
+      return;
+    }
+    const defaultColor = EXTRA_TEAM_COLORS[state.teams.length % EXTRA_TEAM_COLORS.length];
+
+    openModal("새 팀 추가 (관리자 전용)", `
+      <p style="margin-top:0;color:#475569;">
+        새로운 팀을 추가하면 현재 쿼터의 모든 날짜 하단에 팀 상자(진행/계획 포함)와 작성자 선택 목록이 함께 추가됩니다.
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:700;display:block;margin-bottom:4px;">팀 이름</label>
+        <input type="text" id="newTeamNameInput" placeholder="예: 물류, 인사총무, CS" maxlength="20" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:700;display:block;margin-bottom:6px;">팀 상자 채우기 색상</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="color" id="newTeamColorPicker" value="${defaultColor}" style="width:44px;height:34px;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;" />
+          <div id="newTeamSwatches" class="swatch-row"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn" id="cancelAddTeamBtn">취소</button>
+        <button class="btn btn-admin" id="confirmAddTeamBtn">➕ 팀 추가하기</button>
+      </div>
+    `);
+
+    const swatchRow = document.getElementById("newTeamSwatches");
+    const colorPicker = document.getElementById("newTeamColorPicker");
+    EXTRA_TEAM_COLORS.forEach(c => {
+      const sw = document.createElement("div");
+      sw.className = "swatch";
+      sw.style.backgroundColor = c;
+      sw.addEventListener("click", () => { colorPicker.value = c; });
+      swatchRow.appendChild(sw);
+    });
+
+    const nameInput = document.getElementById("newTeamNameInput");
+    setTimeout(() => nameInput.focus(), 30);
+
+    document.getElementById("cancelAddTeamBtn").addEventListener("click", closeModal);
+    const submitTeam = () => {
+      const name = nameInput.value.trim();
+      const color = colorPicker.value;
+      if (!name) {
+        showToast("팀 이름을 입력해 주세요.");
+        nameInput.focus();
+        return;
+      }
+      if (state.teams.some(t => t.name === name)) {
+        showToast(`'${name}' 팀이 이미 존재합니다.`);
+        nameInput.focus();
+        return;
+      }
+
+      const newTeam = { name, color };
+      state.teams.push(newTeam);
+
+      function appendTeamToDates(node) {
+        if (!node) return;
+        if (node.type === "date") {
+          const parts = node.id.split("_");
+          const y = Number(parts[1]) || state.year;
+          const m = Number(parts[2]) || 1;
+          const d = Number(parts[3]) || 1;
+          const expandThis = focusDateId && node.id === focusDateId;
+          if (expandThis) node.collapsed = false;
+          node.children.push(createTeamNode(y, m, d, newTeam, expandThis, false));
+          return;
+        }
+        if (node.children) node.children.forEach(appendTeamToDates);
+      }
+
+      appendTeamToDates(state.tree);
+      refreshAuthorOptions();
+      saveData();
+      render();
+      closeModal();
+      showToast(`'${name}' 팀이 추가되었습니다.`);
+    };
+
+    document.getElementById("confirmAddTeamBtn").addEventListener("click", submitTeam);
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitTeam();
+      }
+    });
+  }
+
+  // =========================================================
+  // 6. 단계별 펼치기 / 접기
+  // =========================================================
+  function collectDepthStats(node, depth = 0, stats = []) {
+    if (node.children && node.children.length > 0) {
+      stats.push({ node, depth });
+      node.children.forEach(c => collectDepthStats(c, depth + 1, stats));
+    }
+    return stats;
+  }
+
+  function expandOneLevel() {
+    const stats = collectDepthStats(state.tree);
+    const collapsed = stats.filter(s => s.node.collapsed);
+    if (collapsed.length === 0) {
+      showToast("모든 단계가 이미 펼쳐져 있습니다.");
+      return;
+    }
+    const minDepth = Math.min(...collapsed.map(s => s.depth));
+    collapsed.forEach(s => {
+      if (s.depth === minDepth) s.node.collapsed = false;
+    });
+    saveData();
+    render();
+  }
+
+  function collapseOneLevel() {
+    function collectVisibleExpanded(node, depth = 0, list = []) {
+      if (!node.children || node.children.length === 0) return list;
+      if (!node.collapsed) {
+        list.push({ node, depth });
+        node.children.forEach(c => collectVisibleExpanded(c, depth + 1, list));
+      }
+      return list;
+    }
+    const visibleExpanded = collectVisibleExpanded(state.tree);
+    if (visibleExpanded.length === 0) {
+      showToast("더 이상 접을 단계가 없습니다.");
+      return;
+    }
+    const maxDepth = Math.max(...visibleExpanded.map(s => s.depth));
+    visibleExpanded.forEach(s => {
+      if (s.depth === maxDepth) s.node.collapsed = true;
+    });
+    saveData();
+    render();
+  }
+
+  // =========================================================
+  // 7. 노드 조작 (추가, 편집, 삭제, 첨부, 이미지 붙여넣기)
+  // =========================================================
+  function addChildTextNode(parentId) {
+    const found = findNodeAndParent(state.tree, parentId);
+    if (!found) return;
+    const parent = found.node;
+
+    const allowedParentTypes = ["team", "category", "custom"];
+    if (!allowedParentTypes.includes(parent.type)) {
+      showToast("하위 글상자는 각 팀(또는 진행/계획) 이하에서 추가할 수 있습니다.");
+      return;
+    }
+    if (!canEditNode(parent)) {
+      showToast(`현재 작성자(${state.author})는 '${parent.teamName}' 팀 항목을 수정할 수 없습니다.`);
+      return;
+    }
+
+    parent.collapsed = false;
+    if (!parent.children) parent.children = [];
+
+    const newNode = {
+      id: uid(),
+      type: "custom",
+      teamName: parent.teamName,
+      text: "",
+      collapsed: false,
+      borderStyle: "none",
+      borderColor: "#334155",
+      fillColor: "transparent",
+      attachments: [],
+      pastedImages: [],
+      children: []
+    };
+    parent.children.push(newNode);
+    ui.selectedId = newNode.id;
+    saveData();
+    render();
+  }
+
+  function startEditing(nodeId) {
+    const found = findNodeAndParent(state.tree, nodeId);
+    if (!found) return;
+    const node = found.node;
+    if (node.type !== "custom") return;
+    if (!canEditNode(node)) {
+      showToast(`현재 작성자(${state.author})는 '${node.teamName}' 팀만 입력할 수 있습니다.`);
+      return;
+    }
+    ui.selectedId = nodeId;
+    ui.editingId = nodeId;
+    render();
+  }
+
+  function deleteCustomNode(nodeId) {
+    const found = findNodeAndParent(state.tree, nodeId);
+    if (!found || !found.parent) return;
+    const { node, parent } = found;
+    if (node.type !== "custom") {
+      showToast("기본 구조 상자는 삭제할 수 없습니다.");
+      return;
+    }
+    if (!canEditNode(node)) {
+      showToast(`현재 작성자(${state.author})는 '${node.teamName}' 팀만 삭제할 수 있습니다.`);
+      return;
+    }
+    parent.children = parent.children.filter(c => c.id !== nodeId);
+    if (ui.selectedId === nodeId) ui.selectedId = parent.id;
+    saveData();
+    render();
+  }
+
+  function triggerAttachFile(nodeId) {
+    const found = findNodeAndParent(state.tree, nodeId);
+    if (!found) return;
+    if (!canEditNode(found.node)) {
+      showToast(`현재 작성자(${state.author})는 '${found.node.teamName}' 팀에만 첨부할 수 있습니다.`);
+      return;
+    }
+    ui.pendingAttachNodeId = nodeId;
+    attachFileInput.value = "";
+    attachFileInput.click();
+  }
+
+  attachFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file || !ui.pendingAttachNodeId) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("브라우저 저장 한도(5MB 이하) 파일만 첨부 가능합니다.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const found = findNodeAndParent(state.tree, ui.pendingAttachNodeId);
+      if (found) {
+        if (!found.node.attachments) found.node.attachments = [];
+        found.node.attachments.push({
+          id: uid(),
+          name: file.name,
+          mime: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl: reader.result
+        });
+        saveData();
+        render();
+        showToast(`첨부 완료: ${file.name}`);
+      }
+      ui.pendingAttachNodeId = null;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function getFileExt(filename) {
+    const idx = String(filename || "").lastIndexOf(".");
+    return idx >= 0 ? filename.slice(idx + 1).toLowerCase() : "";
+  }
+
+  function dataUrlToBlob(dataUrl, fallbackMime) {
+    const parts = dataUrl.split(",");
+    const header = parts[0] || "";
+    const base64 = parts[1] || "";
+    const mimeMatch = header.match(/data:([^;]+)/);
+    const mime = fallbackMime || (mimeMatch ? mimeMatch[1] : "application/octet-stream");
+    const binStr = atob(base64);
+    const len = binStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  function launchDesktopOfficeFile(att, ext) {
+    const isExcel = ["xlsx", "xlsm", "xls", "csv"].includes(ext);
+    const isPpt = ["pptx", "pptm", "ppt"].includes(ext);
+    const programLabel = isExcel ? "Microsoft Excel" : isPpt ? "Microsoft PowerPoint" : "연결 프로그램";
+
+    // 웹 URL(SharePoint/OneDrive/사내 서버 링크)인 경우 Office 프로토콜 직접 실행
+    if (att.externalUrl && /^https?:\/\//i.test(att.externalUrl)) {
+      const scheme = isExcel ? "ms-excel:ofe|u|" : isPpt ? "ms-powerpoint:ofe|u|" : "";
+      if (scheme) {
+        window.location.href = `${scheme}${att.externalUrl}`;
+        showToast(`${programLabel} 프로그램을 실행합니다.`);
+        return;
+      }
+    }
+
+    const mime = OFFICE_MIME_MAP[ext] || att.mime || "application/octet-stream";
+    const blob = dataUrlToBlob(att.dataUrl, mime);
+
+    // 구형 Edge / IE 호환
+    if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === "function") {
+      window.navigator.msSaveOrOpenBlob(blob, att.name);
+      return;
+    }
+
+    // Chrome / Chromium Edge: 정확한 MIME Blob으로 실행(열기) 트리거
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = att.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+
+    showToast(`${programLabel} 열기 준비 완료 — 브라우저 다운로드에서 열거나 '항상 열기'를 켜세요.`);
+
+    if (!localStorage.getItem(HIDE_OFFICE_TIP_KEY)) {
+      openModal(`${programLabel} 자동 실행 안내`, `
+        <p style="margin-top:0;">
+          <b>${escapeHtml(att.name)}</b> 파일이 PC로 전달되었습니다.
+        </p>
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <b>💡 클릭 한 번으로 ${programLabel} 바로 여는 방법 (최초 1회 설정)</b>
+          <ol style="margin:8px 0 0 18px;padding:0;line-height:1.7;">
+            <li>브라우저 상단(또는 하단) 다운로드 창에서 방금 받은 <b>${escapeHtml(att.name)}</b> 옆 <b>⋮ / 화살표</b>를 클릭합니다.</li>
+            <li><b>"이 유형의 파일 항상 열기"</b>를 선택합니다.</li>
+            <li>이후부터는 첨부 아이콘(📎)을 클릭할 때마다 <b>${programLabel}</b>이(가) 자동으로 실행됩니다.</li>
+          </ol>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#475569;margin-bottom:12px;">
+          <input type="checkbox" id="hideOfficeTipChk" /> 앞으로 이 안내 다시 보지 않기
+        </label>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-active" id="officeTipOkBtn">확인</button>
+        </div>
+      `);
+      document.getElementById("officeTipOkBtn").addEventListener("click", () => {
+        if (document.getElementById("hideOfficeTipChk").checked) {
+          localStorage.setItem(HIDE_OFFICE_TIP_KEY, "1");
+        }
+        closeModal();
+      });
+    }
+  }
+
+  function openAttachment(att) {
+    const ext = getFileExt(att.name);
+    if (att.mime.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) {
+      openResizablePreview(att.name, "image", att.dataUrl);
+      return;
+    }
+    if (att.mime === "application/pdf" || ext === "pdf") {
+      openResizablePreview(att.name, "pdf", att.dataUrl);
+      return;
+    }
+    if (["xlsx", "xlsm", "xls", "csv", "pptx", "pptm", "ppt"].includes(ext)) {
+      launchDesktopOfficeFile(att, ext);
+      return;
+    }
+    const blob = dataUrlToBlob(att.dataUrl, att.mime);
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = att.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+  }
+
+  function openResizablePreview(title, kind, dataUrl) {
+    ui.previewImgScale = 1;
+    modalCard.className = "modal-card resizable-preview";
+    modalCard.style.width = "82vw";
+    modalCard.style.height = "82vh";
+    modalTitle.textContent = title;
+    modalBody.className = "modal-body preview-mode";
+    modalResizeHint.style.display = "flex";
+
+    modalActions.innerHTML = "";
+
+    if (kind === "image") {
+      const zoomOutBtn = makeActionBtn("➖ 축소", () => updateImgPreviewZoom(-0.2));
+      const zoomResetBtn = makeActionBtn("100%", () => { ui.previewImgScale = 1; applyImgZoom(); });
+      const zoomInBtn = makeActionBtn("➕ 확대", () => updateImgPreviewZoom(0.2));
+      modalActions.append(zoomOutBtn, zoomResetBtn, zoomInBtn);
+
+      modalBody.innerHTML = `<img id="previewModalImg" src="${dataUrl}" style="max-width:100%;max-height:100%;object-fit:contain;transition:transform 0.12s;transform-origin:center;" />`;
+      previewZoomInfo.textContent = "이미지 배율: 100%";
+    } else if (kind === "pdf") {
+      modalBody.innerHTML = `<iframe src="${dataUrl}" style="width:100%;height:100%;border:none;background:#fff;"></iframe>`;
+      previewZoomInfo.textContent = "PDF 뷰어";
+    }
+
+    const size50Btn = makeActionBtn("50%", () => setModalSize("52vw", "58vh"));
+    const size80Btn = makeActionBtn("80%", () => setModalSize("82vw", "82vh"));
+    const sizeFullBtn = makeActionBtn("전체화면", () => setModalSize("96vw", "94vh"));
+    const closeBtn = makeActionBtn("닫기", closeModal);
+    modalActions.append(size50Btn, size80Btn, sizeFullBtn, closeBtn);
+
+    modalBackdrop.classList.add("open");
+  }
+
+  function makeActionBtn(label, onClick) {
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.textContent = label;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  function setModalSize(w, h) {
+    modalCard.style.width = w;
+    modalCard.style.height = h;
+  }
+
+  function updateImgPreviewZoom(delta) {
+    ui.previewImgScale = Math.min(4, Math.max(0.3, ui.previewImgScale + delta));
+    applyImgZoom();
+  }
+
+  function applyImgZoom() {
+    const img = document.getElementById("previewModalImg");
+    if (!img) return;
+    if (ui.previewImgScale === 1) {
+      img.style.maxWidth = "100%";
+      img.style.maxHeight = "100%";
+      img.style.transform = "scale(1)";
+    } else {
+      img.style.maxWidth = "none";
+      img.style.maxHeight = "none";
+      img.style.transform = `scale(${ui.previewImgScale})`;
+    }
+    previewZoomInfo.textContent = `이미지 배율: ${Math.round(ui.previewImgScale * 100)}%`;
+  }
+
+  window.addEventListener("paste", (e) => {
+    const targetId = ui.editingId || ui.selectedId;
+    if (!targetId) return;
+    const found = findNodeAndParent(state.tree, targetId);
+    if (!found) return;
+    const node = found.node;
+
+    if (!["category", "custom"].includes(node.type)) return;
+    if (!canEditNode(node)) {
+      showToast(`현재 작성자(${state.author})는 '${node.teamName}' 팀에만 이미지를 붙여넣기 할 수 있습니다.`);
+      return;
+    }
+
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type && item.type.startsWith("image/")) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) return;
+        compressAndAttachImage(blob, node);
+        break;
+      }
+    }
+  });
+
+  function compressAndAttachImage(blob, node) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1000;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxW) {
+          h = Math.round((h * maxW) / w);
+          w = maxW;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.84);
+        if (!node.pastedImages) node.pastedImages = [];
+        node.pastedImages.push({ id: uid(), dataUrl });
+        saveData();
+        render();
+        showToast("이미지가 글상자 하단에 붙여넣기 되었습니다.");
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(blob);
+  }
+
+  // =========================================================
+  // 8. 렌더링
+  // =========================================================
+  function applyZoomPan() {
+    canvasStage.style.transform = `translate(${ui.panX}px, ${ui.panY}px) scale(${ui.zoom})`;
+    const pct = Math.round(ui.zoom * 100);
+    zoomSlider.value = pct;
+    zoomLabel.textContent = `${pct}%`;
+  }
+
+  function render() {
+    canvasStage.innerHTML = "";
+    if (!state.tree) return;
+    const rootEl = renderHorizontalNode(state.tree);
+    canvasStage.appendChild(rootEl);
+    applyZoomPan();
+  }
+
+  function createToggleBtn(node) {
+    const btn = document.createElement("button");
+    btn.className = "toggle-btn";
+    btn.textContent = node.collapsed ? "+" : "−";
+    btn.title = node.collapsed ? "펼치기" : "접기";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      node.collapsed = !node.collapsed;
+      saveData();
+      render();
+    });
+    return btn;
+  }
+
+  function renderHorizontalNode(node) {
+    const wrap = document.createElement("div");
+    wrap.className = "h-tree-node";
+
+    const box = document.createElement("div");
+    box.className = `node-box box-${node.type}`;
+    if (ui.selectedId === node.id) box.classList.add("selected");
+    box.dataset.nodeId = node.id;
+    box.textContent = node.text;
+
+    box.addEventListener("click", (e) => {
+      e.stopPropagation();
+      ui.selectedId = node.id;
+      render();
+    });
+
+    wrap.appendChild(box);
+
+    const hasChildren = node.children && node.children.length > 0;
+    if (hasChildren) {
+      wrap.appendChild(createToggleBtn(node));
+
+      if (!node.collapsed) {
+        const stem = document.createElement("div");
+        stem.className = "h-stem";
+        wrap.appendChild(stem);
+
+        if (node.type === "date") {
+          const dateBody = document.createElement("div");
+          dateBody.className = "date-v-body";
+
+          const elbow = document.createElement("div");
+          elbow.className = "date-elbow";
+          dateBody.appendChild(elbow);
+
+          const vWrap = renderVerticalChildren(node.children);
+          dateBody.appendChild(vWrap);
+          wrap.appendChild(dateBody);
+        } else {
+          const childrenRow = document.createElement("div");
+          childrenRow.className = "h-children";
+
+          node.children.forEach(child => {
+            const childCell = document.createElement("div");
+            childCell.className = "h-child";
+            childCell.appendChild(renderHorizontalNode(child));
+            childrenRow.appendChild(childCell);
+          });
+
+          wrap.appendChild(childrenRow);
+        }
+      }
+    }
+
+    return wrap;
+  }
+
+  function renderVerticalChildren(children) {
+    const container = document.createElement("div");
+    container.className = "v-children";
+
+    children.forEach(node => {
+      const item = document.createElement("div");
+      item.className = "v-item";
+
+      const row = document.createElement("div");
+      row.className = "v-row";
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "node-text-wrap";
+
+      const mainLine = document.createElement("div");
+      mainLine.className = "box-text-main";
+
+      const editable = canEditNode(node);
+
+      if (ui.editingId === node.id && node.type === "custom") {
+        const ta = document.createElement("textarea");
+        ta.className = "inline-editor";
+        ta.value = node.text || "";
+        ta.rows = 1;
+        ta.placeholder = "내용 입력 (Enter 완료, Shift+Enter 줄바꿈)";
+
+        let isComposing = false;
+        let committed = false;
+
+        ta.addEventListener("compositionstart", () => { isComposing = true; });
+        ta.addEventListener("compositionend", () => {
+          isComposing = false;
+          resizeEditorToContent(ta);
+        });
+
+        ta.addEventListener("input", () => {
+          resizeEditorToContent(ta);
+        });
+
+        const commitEdit = (exitBox = true) => {
+          if (committed) return;
+          committed = true;
+          node.text = wrapAt50Chars(ta.value.trimEnd());
+          ui.editingId = null;
+          if (exitBox) ui.selectedId = null;
+          saveData();
+          render();
+        };
+
+        ta.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" && !ev.shiftKey) {
+            ev.preventDefault();
+            if (isComposing || ev.isComposing || ev.keyCode === 229) {
+              ta.blur();
+            } else {
+              commitEdit(true);
+            }
+          } else if (ev.key === "Escape") {
+            ev.preventDefault();
+            committed = true;
+            ui.editingId = null;
+            ui.selectedId = null;
+            render();
+          }
+        });
+
+        ta.addEventListener("blur", () => {
+          if (ui.editingId === node.id) {
+            setTimeout(() => commitEdit(true), 0);
+          }
+        });
+
+        mainLine.appendChild(ta);
+        setTimeout(() => {
+          resizeEditorToContent(ta);
+          ta.focus();
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }, 0);
+      } else {
+        const box = document.createElement("div");
+        box.dataset.nodeId = node.id;
+        box.className = "node-box";
+
+        if (node.type === "team") {
+          box.classList.add("box-team");
+          box.style.backgroundColor = node.fillColor || "#f8fafc";
+          box.textContent = node.text;
+        } else if (node.type === "category") {
+          box.classList.add("box-category");
+          box.textContent = node.text;
+        } else {
+          box.classList.add("box-custom");
+          const wrapped = wrapAt50Chars(node.text || "");
+          if (!wrapped) {
+            box.classList.add("empty-text");
+            box.textContent = "(내용 없음 - 더블클릭 입력 / Space로 하위 추가)";
+          } else {
+            box.textContent = wrapped;
+          }
+          if (node.borderStyle && node.borderStyle !== "none") {
+            const width = node.borderStyle === "bold" ? "2.5px" : "1.5px";
+            const style = node.borderStyle === "dashed" ? "dashed" : "solid";
+            box.style.border = `${width} ${style} ${node.borderColor || "#334155"}`;
+          } else {
+            box.style.border = "none";
+          }
+          if (node.fillColor && node.fillColor !== "transparent") {
+            box.style.backgroundColor = node.fillColor;
+          }
+        }
+
+        if (ui.selectedId === node.id) box.classList.add("selected");
+        if (!editable) box.classList.add("readonly-dim");
+
+        box.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeContextMenu();
+          ui.selectedId = node.id;
+          render();
+        });
+
+        box.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          if (node.type === "custom") {
+            startEditing(node.id);
+          } else if (node.children && node.children.length > 0) {
+            node.collapsed = !node.collapsed;
+            saveData();
+            render();
+          }
+        });
+
+        mainLine.appendChild(box);
+      }
+
+      if (node.type === "category" || node.type === "custom") {
+        const attachArea = document.createElement("div");
+        attachArea.className = "attach-area";
+
+        if (node.attachments && node.attachments.length > 0) {
+          node.attachments.forEach((att, idx) => {
+            const badge = document.createElement("span");
+            badge.className = "attach-icon-badge";
+            badge.innerHTML = `📎<span class="attach-tooltip">${escapeHtml(att.name)}</span>`;
+            badge.addEventListener("click", (e) => {
+              e.stopPropagation();
+              openAttachment(att);
+            });
+            badge.addEventListener("contextmenu", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (editable && confirm(`첨부파일 '${att.name}' 을(를) 삭제하시겠습니까?`)) {
+                node.attachments.splice(idx, 1);
+                saveData();
+                render();
+              }
+            });
+            attachArea.appendChild(badge);
+          });
+        }
+
+        if (editable) {
+          const addAttBtn = document.createElement("button");
+          addAttBtn.className = "attach-add-btn";
+          addAttBtn.textContent = "+📎";
+          addAttBtn.title = "첨부파일 추가 (엑셀, PDF, PPT, 이미지 등)";
+          addAttBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            triggerAttachFile(node.id);
+          });
+          attachArea.appendChild(addAttBtn);
+        }
+
+        mainLine.appendChild(attachArea);
+      }
+
+      if (node.children && node.children.length > 0) {
+        mainLine.appendChild(createToggleBtn(node));
+      }
+
+      textWrap.appendChild(mainLine);
+
+      if (node.pastedImages && node.pastedImages.length > 0) {
+        const imgsWrap = document.createElement("div");
+        imgsWrap.className = "pasted-images-wrap";
+
+        node.pastedImages.forEach((imgObj, idx) => {
+          const card = document.createElement("div");
+          card.className = "pasted-img-card";
+
+          const imgEl = document.createElement("img");
+          imgEl.src = imgObj.dataUrl;
+          imgEl.alt = "붙여넣기 이미지";
+          imgEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openResizablePreview("붙여넣기 이미지 보기", "image", imgObj.dataUrl);
+          });
+          card.appendChild(imgEl);
+
+          if (editable) {
+            const delBtn = document.createElement("button");
+            delBtn.className = "pasted-img-del";
+            delBtn.textContent = "×";
+            delBtn.title = "이미지 삭제";
+            delBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              node.pastedImages.splice(idx, 1);
+              saveData();
+              render();
+            });
+            card.appendChild(delBtn);
+          }
+          imgsWrap.appendChild(card);
+        });
+
+        textWrap.appendChild(imgsWrap);
+      }
+
+      row.appendChild(textWrap);
+      item.appendChild(row);
+
+      if (node.children && node.children.length > 0 && !node.collapsed) {
+        item.appendChild(renderVerticalChildren(node.children));
+      }
+
+      container.appendChild(item);
+    });
+
+    return container;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+    }[m]));
+  }
+
+  // =========================================================
+  // 9. 마우스 인터랙션
+  // =========================================================
+  let rightDrag = null;
+
+  canvasViewport.addEventListener("mousedown", (e) => {
+    if (e.button === 2) {
+      const boxEl = e.target.closest("[data-node-id]");
+      rightDrag = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: ui.panX,
+        startPanY: ui.panY,
+        moved: false,
+        nodeId: boxEl ? boxEl.dataset.nodeId : null
+      };
+    } else if (e.button === 0) {
+      closeContextMenu();
+      if (!e.target.closest(".node-box") && !e.target.closest(".toggle-btn") && !e.target.closest(".attach-area") && !e.target.closest("textarea")) {
+        ui.selectedId = null;
+        render();
+      }
+    }
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!rightDrag) return;
+    const dx = e.clientX - rightDrag.startX;
+    const dy = e.clientY - rightDrag.startY;
+    if (Math.hypot(dx, dy) > 4) {
+      rightDrag.moved = true;
+      canvasViewport.classList.add("panning");
+      closeContextMenu();
+    }
+    if (rightDrag.moved) {
+      ui.panX = rightDrag.startPanX + dx;
+      ui.panY = rightDrag.startPanY + dy;
+      applyZoomPan();
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (e.button === 2 && rightDrag) {
+      const wasMoved = rightDrag.moved;
+      const targetNodeId = rightDrag.nodeId;
+      rightDrag = null;
+      canvasViewport.classList.remove("panning");
+
+      if (!wasMoved && targetNodeId) {
+        openContextMenuForNode(targetNodeId, e.clientX, e.clientY);
+      }
+    }
+  });
+
+  canvasViewport.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+  });
+
+  canvasViewport.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 0.92;
+    const nextZoom = Math.min(2.0, Math.max(0.25, ui.zoom * factor));
+    const rect = canvasViewport.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    ui.panX = mx - ((mx - ui.panX) / ui.zoom) * nextZoom;
+    ui.panY = my - ((my - ui.panY) / ui.zoom) * nextZoom;
+    ui.zoom = nextZoom;
+    applyZoomPan();
+  }, { passive: false });
+
+  canvasViewport.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".node-box") || e.target.closest("textarea") || e.target.closest("button")) return;
+    fitTreeToScreen();
+  });
+
+  function fitTreeToScreen() {
+    const prevZoom = ui.zoom;
+    const prevPanX = ui.panX;
+    const prevPanY = ui.panY;
+
+    canvasStage.style.transform = "translate(0px, 0px) scale(1)";
+    const contentW = canvasStage.scrollWidth;
+    const contentH = canvasStage.scrollHeight;
+    const viewW = canvasViewport.clientWidth;
+    const viewH = canvasViewport.clientHeight;
+
+    if (contentW === 0 || contentH === 0) {
+      ui.zoom = prevZoom; ui.panX = prevPanX; ui.panY = prevPanY;
+      applyZoomPan();
+      return;
+    }
+
+    const scaleX = (viewW - 40) / contentW;
+    const scaleY = (viewH - 40) / contentH;
+    const fitZoom = Math.min(1.2, Math.max(0.25, Math.min(scaleX, scaleY)));
+
+    ui.zoom = fitZoom;
+    ui.panX = Math.max(16, (viewW - contentW * fitZoom) / 2);
+    ui.panY = Math.max(12, (viewH - contentH * fitZoom) / 2);
+    applyZoomPan();
+    showToast(`전체 화면 맞춤 (${Math.round(fitZoom * 100)}%)`);
+  }
+
+  // =========================================================
+  // 10. 우클릭 스타일 메뉴
+  // =========================================================
+  let contextNodeId = null;
+
+  function initContextMenuSwatches() {
+    const borderColorsEl = document.getElementById("cmBorderColors");
+    const fillColorsEl = document.getElementById("cmFillColors");
+
+    BORDER_COLORS.forEach(c => {
+      const s = document.createElement("div");
+      s.className = "swatch";
+      s.style.backgroundColor = c;
+      s.addEventListener("click", () => applyNodeStyle({ borderColor: c }));
+      borderColorsEl.appendChild(s);
+    });
+
+    SWATCH_COLORS.forEach(c => {
+      const s = document.createElement("div");
+      s.className = "swatch" + (c === "transparent" ? " transparent-swatch" : "");
+      if (c !== "transparent") s.style.backgroundColor = c;
+      s.addEventListener("click", () => applyNodeStyle({ fillColor: c }));
+      fillColorsEl.appendChild(s);
+    });
+
+    document.querySelectorAll("#cmBorderStyles .cm-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        applyNodeStyle({ borderStyle: btn.dataset.border });
+      });
+    });
+
+    document.getElementById("cmAddChildBtn").addEventListener("click", () => {
+      if (contextNodeId) addChildTextNode(contextNodeId);
+      closeContextMenu();
+    });
+    document.getElementById("cmAttachBtn").addEventListener("click", () => {
+      if (contextNodeId) triggerAttachFile(contextNodeId);
+      closeContextMenu();
+    });
+    document.getElementById("cmDeleteBtn").addEventListener("click", () => {
+      if (contextNodeId) deleteCustomNode(contextNodeId);
+      closeContextMenu();
+    });
+    document.getElementById("cmAdminAddTeamBtn").addEventListener("click", () => {
+      const dateId = contextNodeId;
+      closeContextMenu();
+      openAddTeamModal(dateId);
+    });
+  }
+
+  function openContextMenuForNode(nodeId, clientX, clientY) {
+    const found = findNodeAndParent(state.tree, nodeId);
+    if (!found) return;
+    const node = found.node;
+
+    ui.selectedId = nodeId;
+    render();
+
+    const styleSections = document.getElementById("cmStyleSections");
+    const addChildBtn = document.getElementById("cmAddChildBtn");
+    const attachBtn = document.getElementById("cmAttachBtn");
+    const deleteBtn = document.getElementById("cmDeleteBtn");
+    const adminAddTeamBtn = document.getElementById("cmAdminAddTeamBtn");
+
+    if (node.type === "date" && state.author === "관리자") {
+      contextNodeId = nodeId;
+      styleSections.style.display = "none";
+      addChildBtn.style.display = "none";
+      attachBtn.style.display = "none";
+      deleteBtn.style.display = "none";
+      adminAddTeamBtn.style.display = "inline-block";
+    } else if (["team", "category", "custom"].includes(node.type)) {
+      if (!canEditNode(node)) {
+        showToast(`현재 작성자(${state.author})는 '${node.teamName}' 팀만 설정할 수 있습니다.`);
+        return;
+      }
+      contextNodeId = nodeId;
+      styleSections.style.display = "block";
+      addChildBtn.style.display = "inline-block";
+      attachBtn.style.display = node.type === "team" ? "none" : "inline-block";
+      deleteBtn.style.display = node.type === "custom" ? "inline-block" : "none";
+      adminAddTeamBtn.style.display = "none";
+
+      document.querySelectorAll("#cmBorderStyles .cm-chip").forEach(btn => {
+        btn.classList.toggle("active", (node.borderStyle || "none") === btn.dataset.border);
+      });
+    } else {
+      return;
+    }
+
+    const menuW = 260;
+    const menuH = 270;
+    const x = Math.min(window.innerWidth - menuW - 10, clientX);
+    const y = Math.min(window.innerHeight - menuH - 10, clientY);
+
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.classList.add("open");
+  }
+
+  function closeContextMenu() {
+    contextMenu.classList.remove("open");
+    contextNodeId = null;
+  }
+
+  function applyNodeStyle(patch) {
+    if (!contextNodeId) return;
+    const found = findNodeAndParent(state.tree, contextNodeId);
+    if (!found) return;
+    const node = found.node;
+    if (node.type !== "custom" && (patch.borderStyle || patch.borderColor)) {
+      showToast("테두리 스타일은 하위 글상자에 적용됩니다.");
+      return;
+    }
+    Object.assign(node, patch);
+    saveData();
+    render();
+    closeContextMenu();
+  }
+
+  // =========================================================
+  // 11. 키보드 단축키
+  // =========================================================
+  window.addEventListener("keydown", (e) => {
+    if (ui.editingId || modalBackdrop.classList.contains("open")) return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+    if (!ui.selectedId) return;
+
+    if (e.code === "Space") {
+      e.preventDefault();
+      addChildTextNode(ui.selectedId);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      startEditing(ui.selectedId);
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      const found = findNodeAndParent(state.tree, ui.selectedId);
+      if (found && found.node.type === "custom") {
+        e.preventDefault();
+        if (found.node.children && found.node.children.length > 0) {
+          if (confirm("하위 글상자가 포함되어 있습니다. 삭제하시겠습니까?")) {
+            deleteCustomNode(ui.selectedId);
+          }
+        } else {
+          deleteCustomNode(ui.selectedId);
+        }
+      }
+    }
+  });
+
+  // =========================================================
+  // 12. 모달 / JSON / 클라우드 동기화
+  // =========================================================
+  function openModal(title, bodyHtml) {
+    modalCard.className = "modal-card";
+    modalCard.style.width = "";
+    modalCard.style.height = "";
+    modalTitle.textContent = title;
+    modalBody.className = "modal-body";
+    modalResizeHint.style.display = "none";
+    modalActions.innerHTML = "";
+    modalActions.appendChild(makeActionBtn("닫기", closeModal));
+    modalBody.innerHTML = bodyHtml;
+    modalBackdrop.classList.add("open");
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove("open");
+    modalBody.innerHTML = "";
+  }
+
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+
+  exportJsonBtn.addEventListener("click", () => {
+    const payload = {
+      app: "AplusRF_일일업무보고",
+      year: state.year,
+      quarter: state.quarter,
+      exportedBy: state.author,
+      exportedAt: new Date().toISOString(),
+      teams: state.teams,
+      tree: state.tree
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `AplusRF_${state.year}_${state.quarter}Q_${state.author}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("JSON 파일로 내보냈습니다.");
+  });
+
+  importJsonBtn.addEventListener("click", () => {
+    ui.jsonImportMode = "replace";
+    jsonFileInput.value = "";
+    jsonFileInput.click();
+  });
+
+  mergeJsonBtn.addEventListener("click", () => {
+    ui.jsonImportMode = "merge";
+    jsonFileInput.value = "";
+    jsonFileInput.click();
+  });
+
+  function mergeTeamBranches(targetNode, incomingNode, targetTeamName) {
+    if (!targetNode || !incomingNode) return;
+    if (targetNode.type === "team" && targetNode.teamName === targetTeamName) {
+      targetNode.children = incomingNode.children || [];
+      targetNode.collapsed = incomingNode.collapsed;
+      return;
+    }
+    if (targetNode.children && incomingNode.children) {
+      const map = new Map(incomingNode.children.map(c => [c.id, c]));
+      targetNode.children.forEach(c => {
+        const inc = map.get(c.id);
+        if (inc) mergeTeamBranches(c, inc, targetTeamName);
+      });
+    }
+  }
+
+  jsonFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        const incomingTree = parsed.tree || parsed;
+        if (!incomingTree || !incomingTree.children) throw new Error("형식 오류");
+
+        if (ui.jsonImportMode === "merge" && parsed.exportedBy && parsed.exportedBy !== "관리자") {
+          mergeTeamBranches(state.tree, incomingTree, parsed.exportedBy);
+          showToast(`'${parsed.exportedBy}' 팀 보고 내용을 병합했습니다.`);
+        } else {
+          if (parsed.year) {
+            state.year = Number(parsed.year);
+            yearSelect.value = state.year;
+          }
+          if (parsed.quarter) {
+            state.quarter = Number(parsed.quarter);
+            quarterSelect.value = state.quarter;
+          }
+          if (Array.isArray(parsed.teams) && parsed.teams.length > 0) {
+            state.teams = parsed.teams;
+            refreshAuthorOptions();
+          }
+          state.tree = incomingTree;
+          showToast("JSON 데이터를 불러왔습니다.");
+        }
+        saveData();
+        render();
+      } catch (err) {
+        alert("올바른 AplusRF JSON 파일이 아닙니다.");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  });
+
+  function openCloudSyncModal() {
+    openModal("실시간 협업 동기화 설정", `
+      <p style="margin-top:0;color:#475569;">
+        같은 PC 내 여러 창에서는 자동으로 즉시 동기화됩니다.<br/>
+        서로 다른 팀장 PC에서 인터넷을 통해 <b>실시간 동시 입력</b>을 하려면 Firebase Realtime Database URL을 입력하세요.
+      </p>
+      <div style="margin-bottom:10px;">
+        <label style="font-weight:700;display:block;margin-bottom:4px;">Firebase Realtime DB URL</label>
+        <input type="text" id="cfgFirebaseUrl" placeholder="예: https://my-aplus-rf-default-rtdb.firebaseio.com" value="${escapeHtml(cloudConfig.firebaseUrl)}" />
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-weight:700;display:block;margin-bottom:4px;">협업 방 코드 (Room ID)</label>
+        <input type="text" id="cfgRoomId" placeholder="aplusRF_2027" value="${escapeHtml(cloudConfig.roomId)}" />
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn" id="cfgClearBtn">연결 해제</button>
+        <button class="btn btn-active" id="cfgSaveBtn">저장 및 실시간 연결</button>
+      </div>
+    `);
+
+    document.getElementById("cfgSaveBtn").addEventListener("click", () => {
+      cloudConfig.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
+      cloudConfig.roomId = document.getElementById("cfgRoomId").value.trim() || "aplusRF_2027";
+      localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cloudConfig));
+      updateSyncStatusUI();
+      connectCloudStream();
+      closeModal();
+      showToast("실시간 동기화 설정이 적용되었습니다.");
+    });
+
+    document.getElementById("cfgClearBtn").addEventListener("click", () => {
+      cloudConfig.firebaseUrl = "";
+      localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cloudConfig));
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      updateSyncStatusUI();
+      closeModal();
+      showToast("로컬 협업 모드로 전환되었습니다.");
+    });
+  }
+
+  cloudSyncBtn.addEventListener("click", openCloudSyncModal);
+  syncStatusBtn.addEventListener("click", openCloudSyncModal);
+
+  // =========================================================
+  // 13. 상단 컨트롤 초기화 및 작성자 목록 갱신
+  // =========================================================
+  function refreshAuthorOptions() {
+    const prev = state.author;
+    authorSelect.innerHTML = "";
+
+    const adminOpt = document.createElement("option");
+    adminOpt.value = "관리자";
+    adminOpt.textContent = "관리자 (전체)";
+    authorSelect.appendChild(adminOpt);
+
+    state.teams.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.name;
+      opt.textContent = (t.name === "이사" || t.name === "대표이사") ? t.name : `${t.name} 팀장`;
+      authorSelect.appendChild(opt);
+    });
+
+    const stillExists = prev === "관리자" || state.teams.some(t => t.name === prev);
+    state.author = stillExists ? prev : "관리자";
+    authorSelect.value = state.author;
+    updatePermissionBadge();
+  }
+
+  function updatePermissionBadge() {
+    if (state.author === "관리자") {
+      permissionBadge.textContent = "전체 팀 입력 가능";
+      permissionBadge.style.background = "#dcfce7";
+      permissionBadge.style.color = "#166534";
+      addTeamBtn.style.display = "inline-flex";
+    } else {
+      permissionBadge.textContent = `'${state.author}' 팀만 입력 가능`;
+      permissionBadge.style.background = "#fef3c7";
+      permissionBadge.style.color = "#92400e";
+      addTeamBtn.style.display = "none";
+    }
+  }
+
+  function initControls() {
+    for (let y = 2025; y <= 2030; y++) {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.textContent = `${y}년`;
+      yearSelect.appendChild(opt);
+    }
+    yearSelect.value = String(state.year);
+    quarterSelect.value = String(state.quarter);
+
+    const savedAuthor = localStorage.getItem(AUTHOR_KEY);
+    if (savedAuthor) state.author = savedAuthor;
+    refreshAuthorOptions();
+
+    addTeamBtn.addEventListener("click", () => openAddTeamModal(null));
+
+    yearSelect.addEventListener("change", () => {
+      state.year = Number(yearSelect.value);
+      const loaded = loadQuarterData(state.year, state.quarter);
+      state.teams = loaded.teams;
+      state.tree = loaded.tree;
+      refreshAuthorOptions();
+      ui.selectedId = null;
+      ui.editingId = null;
+      connectCloudStream();
+      render();
+    });
+
+    quarterSelect.addEventListener("change", () => {
+      state.quarter = Number(quarterSelect.value);
+      const loaded = loadQuarterData(state.year, state.quarter);
+      state.teams = loaded.teams;
+      state.tree = loaded.tree;
+      refreshAuthorOptions();
+      ui.selectedId = null;
+      ui.editingId = null;
+      connectCloudStream();
+      render();
+    });
+
+    authorSelect.addEventListener("change", () => {
+      state.author = authorSelect.value;
+      localStorage.setItem(AUTHOR_KEY, state.author);
+      ui.editingId = null;
+      updatePermissionBadge();
+      render();
+      showToast(`작성자가 '${authorSelect.options[authorSelect.selectedIndex].text}' (으)로 변경되었습니다.`);
+    });
+
+    expandStepBtn.addEventListener("click", expandOneLevel);
+    collapseStepBtn.addEventListener("click", collapseOneLevel);
+
+    optionsToggleBtn.addEventListener("click", () => {
+      ui.optionsVisible = !ui.optionsVisible;
+      optionsPanel.classList.toggle("visible", ui.optionsVisible);
+      optionsToggleBtn.classList.toggle("btn-active", ui.optionsVisible);
+    });
+
+    zoomSlider.addEventListener("input", () => {
+      ui.zoom = Number(zoomSlider.value) / 100;
+      applyZoomPan();
+    });
+  }
+
+  // =========================================================
+  // 14. 앱 시작
+  // =========================================================
+  function bootstrap() {
+    initControls();
+    initContextMenuSwatches();
+    loadCloudConfig();
+    initBroadcastChannel();
+
+    const loaded = loadQuarterData(state.year, state.quarter);
+    state.teams = loaded.teams;
+    state.tree = loaded.tree;
+    refreshAuthorOptions();
+    render();
+    connectCloudStream();
+  }
+
+  bootstrap();
+})();
+</script>
+</body>
+</html>
